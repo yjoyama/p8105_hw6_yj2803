@@ -106,3 +106,28 @@ case_log |>
 ```
 
 From the plot, we can see that in Albuquerque, NM, the odds of cases to be solved is the lowest in male compared to female holding other variables (OR: `r case_log |> filter(city_state == "Albuquerque, NM") |> select(or) |> round(2)`, 95% CI: `r case_log |> filter(city_state == "Albuquerque, NM") |> select(lb.or) |> round(2)` - `r case_log |> filter(city_state == "Albuquerque, NM") |> select(ub.or) |> round(2)`). In New York, NY, the odds of resolved cases in male compared to female was the highest keeping all other variables fixed (OR: `r case_log |> filter(city_state == "New York, NY") |> select(or) |> round(2)`, 95% CI: `r case_log |> filter(city_state == "New York, NY") |> select(lb.or) |> round(2)` - `r case_log |> filter(city_state == "New York, NY") |> select(ub.or) |> round(2)`).
+
+# Problem 2
+
+```{r}
+# download dataset for this question
+weather_df = 
+  rnoaa::meteo_pull_monitors(
+    c("USW00094728"),
+    var = c("PRCP", "TMIN", "TMAX"), 
+    date_min = "2022-01-01",
+    date_max = "2022-12-31") |>
+  mutate(
+    name = recode(id, USW00094728 = "CentralPark_NY"),
+    tmin = tmin / 10,
+    tmax = tmax / 10) |>
+  select(name, id, everything())
+```
+
+
+
+
+
+
+
+
