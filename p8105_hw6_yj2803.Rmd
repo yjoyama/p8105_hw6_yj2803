@@ -12,6 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 Read packages
 ```{r message=FALSE}
 library(tidyverse)
+library(modelr)
 ```
 
 # Problem 1
@@ -165,10 +166,60 @@ boot_results |>
 The estimate of $r^2$ and $log(\hat{\beta}_1*\hat{\beta}_2)$ show left-skewed unimodal distribution. This indicates that there may be variability in the data.   
 * 3361 out of 5000 $log(\hat{\beta}_1*\hat{\beta}_2)$ values were removed from the plot because the log of a negative number could not be calculated. 
 
-The 95% confidence interval for $r^2$ is `r round(quantile(pull(boot_results, r.squared), 0.025), 2)` - `r round(quantile(pull(boot_results, r.squared), 0.975), 2)`; $log(\hat{\beta}_1*\hat{\beta}_2)$ is `r round(quantile(pull(boot_results, log_beta), 0.025, na.rm = T), 2)` - `r round(quantile(pull(boot_results, log_beta), 0.975, na.rm = T), 2)`
+The 95% confidence interval for $r^2$ is `r round(quantile(pull(boot_results, r.squared), 0.025), 2)` - `r round(quantile(pull(boot_results, r.squared), 0.975), 2)`; $log(\hat{\beta}_1*\hat{\beta}_2)$ is `r round(quantile(pull(boot_results, log_beta), 0.025, na.rm = T), 2)` - `r round(quantile(pull(boot_results, log_beta), 0.975, na.rm = T), 2)`.
 
+# Problem 3
+```{r message=FALSE}
+# read csv file
+df_birthwt = read_csv("./data/birthweight.csv")
 
+# clean the data for regression analysis
+df_birthwt = df_birthwt |> 
+  mutate( # convert some variables from numeric to factor
+    babysex = as.factor(babysex), 
+    frace = as.factor(frace),
+    malform = as.factor(malform),
+    mrace = as.factor(mrace)
+  ) |> 
+  drop_na()
+```
 
+I will perform stepwise regression to build a model for this problem.
 
+```{r}
+# define intercept-only model
+intercept_only = lm(bwt ~ 1, data = df_birthwt)
 
+# define model with all predictors
+all = lm(bwt ~ ., data = df_birthwt)
 
+# perform both-direction stepwise regression
+both = step(intercept_only, direction = 'both', scope = formula(all), trace = 0)
+
+# final model
+lm_birthwt = both 
+lm_birthwt 
+```
+
+First, I fit the intercept-only model. Then, predictors were added to the model sequentially. After adding each predictor, any predictors that did not improve in model fit were removed from the model. This process was repeated until obtaining the final model.
+
+The predictors included in the final model are:  
+`bhead`, `blength`, `mrace`, `delwt`, `gaweeks`, `smoken`, `ppbmi`, `babysex`, `parity`, `ppwt`, `fincome`  
+
+```{r}
+# plot model residuals against fitted values
+df_birthwt |> 
+  add_predictions(lm_birthwt) |> 
+  add_residuals(lm_birthwt) |> 
+  ggplot(aes(x = pred, y = resid)) +
+  geom_point(alpha = 0.2) +
+  geom_hline(yintercept = 0, color = "red") +
+  theme_bw() +
+  labs(
+    title = "Plot of Residuals vs. Predicted Values",
+    x = "Predicted Values",
+    y = "Residuals"
+  ) 
+```
+
+We can see that the spread of the residuals are higher for the lower fitted values, but overall the points are scattered randomly around the residual = 0 line.  
