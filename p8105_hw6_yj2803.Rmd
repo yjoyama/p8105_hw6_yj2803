@@ -15,7 +15,7 @@ library(tidyverse)
 ```
 
 # Problem 1
-```{r message=FALSE}
+```{r message=FALSE, warning=FALSE}
 # read csv file
 df_homicide = read_csv("./data/homicide-data.csv")
 
@@ -109,7 +109,7 @@ From the plot, we can see that in Albuquerque, NM, the odds of cases to be solve
 
 # Problem 2
 
-```{r}
+```{r message=FALSE, cache=TRUE, warning=FALSE}
 # download dataset for this question
 weather_df = 
   rnoaa::meteo_pull_monitors(
@@ -122,9 +122,50 @@ weather_df =
     tmin = tmin / 10,
     tmax = tmax / 10) |>
   select(name, id, everything())
+
+# function to get sample
+boot_sample = function(df) {
+  sample_frac(df, replace = TRUE)
+}
+
+set.seed(1)
+
+# get bootstrap samples
+boot_strp = tibble(strp_num = 1:5000) |> 
+  mutate(
+    strp_sample = map(strp_num, \(i) boot_sample(weather_df))
+  )
+
+# fit linear regression model for each sample data 
+boot_results = boot_strp |> 
+  mutate(
+    models = map(strp_sample, \(df) lm(tmax ~ tmin + prcp, data = df)),
+    results_lm = map(models, broom::tidy),
+    results_glance = map(models, broom::glance)
+  ) |> 
+  unnest(results_lm, results_glance) |> 
+  select(strp_num, term, estimate, r.squared) |> 
+  pivot_wider(names_from = term, values_from = estimate, names_prefix = "estimate_") |> 
+  mutate(
+    log_beta = log(estimate_tmin * estimate_prcp) # calculate log(beta1*beta2)
+  )
+
+# plot the distribution of estimates
+boot_results |> 
+  ggplot(aes(x = r.squared)) + 
+  geom_density() +
+  theme_bw()
+
+boot_results |> 
+  ggplot(aes(x = log_beta)) + 
+  geom_density() +
+  theme_bw()
 ```
 
+The estimate of $r^2$ and $log(\hat{\beta}_1*\hat{\beta}_2)$ show left-skewed unimodal distribution. This indicates that there may be variability in the data.   
+* 3361 out of 5000 $log(\hat{\beta}_1*\hat{\beta}_2)$ values were removed from the plot because the log of a negative number could not be calculated. 
 
+The 95% confidence interval for $r^2$ is `r round(quantile(pull(boot_results, r.squared), 0.025), 2)` - `r round(quantile(pull(boot_results, r.squared), 0.975), 2)`; $log(\hat{\beta}_1*\hat{\beta}_2)$ is `r round(quantile(pull(boot_results, log_beta), 0.025, na.rm = T), 2)` - `r round(quantile(pull(boot_results, log_beta), 0.975, na.rm = T), 2)`
 
 
 
